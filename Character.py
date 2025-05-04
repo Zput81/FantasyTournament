@@ -25,6 +25,8 @@ class Character:
         self.abilities = {}
         self.statuses = {}
 
+        self.team = "neutral"
+
     def calculate_max_health(self):
         base_health = 15
         health_bonus = (self.vitality * 0.5)
@@ -112,27 +114,40 @@ class Character:
             "params": effect_params
         }
 
+        message = None
+
         if status_name == "armor_up":
             self.armor += effect_params.get("armor_bonus", 15)
+            message = f"{self.name} gains armor up (+{effect_params.get('armor_bonus', 15)} armor"
         elif status_name == "rage":
             self.strength += effect_params.get("bonus_strength", 10)
             self.armor -= effect_params.get("armor_loss", 5)
+            message = f"{self.name} enters a rage (+{effect_params.get('bonus_strength', 10)} strength (- {effect_params.get('armor_loss', 5)}) armor)"
         elif status_name == "stun":
-            print(f"{self.name} is stunned.")
+            message = f"{self.name} is stunned and cannot act"
 
-    def can_take_action(self):
+    def can_act(self):
         if "stun" in self.statuses:
-            print(f"{self.name} is stunned and loses their turn.")
             return False
-        return True
+        return self.is_alive()
 
-    def update_statuses(self):
+    def process_status_effect_at_turn_start(self):
+        results = []
+
+        return results
+    
+    def process_status_effects_at_turn_end(self):
+        results = []
+
         for status_name in list(self.statuses.keys()):
             self.statuses[status_name]["duration"] -= 1
-            
-            if self.statuses[status_name]["duration"] <=0:
-                print(f"{status_name} has worn off from {self.name}.")
+
+            if self.statuses[status_name]["duration"] <= 0:
+                message = f"{status_name} has worn of from {self.name}"
+                results.append(message)
                 self.remove_status_effect(status_name)
+        
+        return results
 
     def remove_status_effect(self, status_name):
         if status_name not in self.statuses:
@@ -175,6 +190,27 @@ class Character:
         print(f"{self.name} uses {ability_name}!")
 
         return self.abilities[ability_name]["effect"](self, target)
+    
+    def is_alive(self):
+        return self.health > 0
+    
+    def set_team(self, team_name):
+        self.team = team_name
+        return f"{self.name} is now aligned with team {team_name}"
+    
+    def choose_action(self, targets):
+        valid_targets = [target for target in targets
+                         if target.team != self.team and target.is_alive()]
+        
+        if not valid_targets:
+            return {"type": "pass"}
+        
+        chosen_target = random.choice(valid_targets)
+
+        return {
+            "type": "attack",
+            "target": chosen_target
+        }
     
 class Barbarian(Character):
     def __init__(self, name):

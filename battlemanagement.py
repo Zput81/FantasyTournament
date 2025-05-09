@@ -1,9 +1,11 @@
+from Character import Character
+
 class CombatManager:
     def __init__(self):
         self.participants = []
         self.current_turn_index = 0
         self.round_number = 0
-        self.is_combat_active = False
+        self.is_combat_active = True
         self.battle_log = []
         self.max_rounds = 100
 
@@ -42,38 +44,76 @@ class CombatManager:
 
         if not current_character.can_act():
             self.log_event(f"{current_character} cannot act this turn.")
+        else:
+            self._perform_ai_action(current_character)
+
+        if self._check_combat_end_conditions():
+            self._announce_combat_result()
+            self.is_combat_active = False
+            return
 
         self._end_turn()
 
-    def _preform_ai_action(self, character):
+    def _perform_ai_action(self, character):
         targets = self._get_valid_targets(character)
         if not targets:
             self.log_event(f"{character.name} has no valid target.")
             return
         
-        action, target = character.choose_action(targets)
+        action_result = character.choose_action(targets)
 
-        self._execute_action(character, action, target)
+        if len(action_result) == 2:
+            action, target = action_result
+            is_ability = False
+        else:
+            action, target, is_ability = action_result
+
+        if is_ability:
+            if isinstance(target, list):
+                action_result = character.use_ability(action, all_enemies=target)
+            else:
+                action_result = character.use_ability(action, target=target)
+        else:
+            action_result = action(target)
+
+        self._execute_action(character, action_result, target)
 
     def _get_valid_targets(self, character):
         return [p for p in self.participants if p.is_alive() and p.team != character.team]
     
-    def _execute_action(self, character, action, target):
-        result = action(target)
-        self.log_event(f"{character.name}{result['description']}{target.name}")
-        self.log_event(f" Effect: {result['effect_description']}")
+    def _execute_action(self, character, action_result, target):
+        if isinstance(action_result, bool):
+            print(f"{character.name} preformed an action on {target.name if target else 'themselves'}.")
+            return
+        
+        if "effect_description" in action_result:
+            print(action_result["effect_description"])
+            return
+        
+        if "description" in action_result:
+            print(action_result["description"])
+            return
+        
+        if action_result.get("damage", 0) > 0:
+            if action_result.get("is_critical", False):
+                print(f"{target.name} takes {action_result['damage']} damage from {character.name}'s critical hit.")
+            else:
+                print(f"{target.name} takes {action_result['damage']} damage from {character.name}'s attack.")
 
-        self._check_combat_end_conditions()
-
+        elif action_result.get("absorbed", False):
+            print(f"{target.name}'s armor absorbed {character.name}'s attack.")
+        elif action_result.get("is_dodged", False):
+            print(f"{target.name} dodges {character.name}'s attack.")
+            
     def _process_status_effects(self, character):
-        status_results = character.process_status_effect_at_turn_start()
+        status_results = character.process_status_effects_at_turn_start()
         for result in status_results:
             self.log_event(f" Status Effect: {result}")
 
     def _end_turn(self):
         current_character = self.participants[self.current_turn_index]
 
-        end_turn_results = current_character.process_status_effect_at_turn_end()
+        end_turn_results = current_character.process_status_effects_at_turn_end()
         for result in end_turn_results:
             self.log_event(f" End Turn Effect: {result}")
 
@@ -90,19 +130,19 @@ class CombatManager:
                 if character.team not in teams:
                     teams[character.team] = []
                 teams[character.team].append(character)
-        
-        if len(teams) <= 1:
-            self.is_combat_active = False
 
-        if len(teams) == 1:
+        if len(teams) == 0:
+            self.is_combat_active = False
+            self.log_event(f"\n=== Draw - All Combatants have Fallen! ===")
+
+        elif len(teams) == 1:
+            self.is_combat_active = False
             winning_team = list(teams.keys())[0]
-            self.log_event(f"\n=== Team {winning_team} Wins! ===")
-        else:
-            self.log_event(f"\n=== Draw - All Combatants Have Fallen! ===")
+            self.log_event(f"\n=== {winning_team} Wins! ===")
 
-        if self.round_number >= self.max_rounds:
+        elif self.round_number >= self.max_rounds:
             self.is_combat_active = False
-            self.log_event(f"\n=== Combat after {self.max_rounds} rounds! ===")
+            self.log_event(f"\n=== Combat ended after {self.max_rounds} rounds! ===")
 
     def _determine_winner(self):
         living_teams = {}

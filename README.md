@@ -1,0 +1,3 @@
+Very fun, very big project. Was a bit too much for me at first, but I kept at it for as long as I could. I took some advice I recieved about knowing your limits and knowing when to just turn something in, even if its not up to what you imagined.
+So far there is the start of a special ability system, but it was too much for me to handle and I couldn't get it implemented correctly. There are also some other lines that need some work but after a lot of work, I had to swallow my pride and figure out that I just don't have enough experience to figure it out at the moment.
+All in all, I am content with what it is at the moment because what I did acomplish I feel like is pretty impressive.
